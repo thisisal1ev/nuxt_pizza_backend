@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
-export class CategoriesService {
+export class StoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  getCategories() {
-    return this.prisma.category.findMany();
+  async getStories() {
+    return this.prisma.story.findMany({
+      include: {
+        items: true,
+      },
+    });
   }
 }
