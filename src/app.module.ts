@@ -1,21 +1,11 @@
 import { Module } from '@nestjs/common';
 
-import { CategoriesController } from './categories/categories.controller';
-import { CategoriesService } from './categories/categories.service';
-import { IngredientsController } from './ingredients/ingredients.controller';
-import { IngredientsService } from './ingredients/ingredients.service';
-import { PrismaService } from './prisma.service';
-import { StoriesController } from './stories/stories.controller';
-import { StoriesService } from './stories/stories.service';
+import { CategoriesModule } from './categories/categories.module';
+import { IngredientsModule } from './ingredients/ingredients.module';
+import { ProductsModule } from './products/products.module';
+import { StoriesModule } from './stories/stories.module';
 
 @Module({
-  imports: [],
-  controllers: [CategoriesController, StoriesController, IngredientsController],
-  providers: [
-    CategoriesService,
-    PrismaService,
-    StoriesService,
-    IngredientsService,
-  ],
+  imports: [StoriesModule, ProductsModule, IngredientsModule, CategoriesModule],
 })
 export class AppModule {}
