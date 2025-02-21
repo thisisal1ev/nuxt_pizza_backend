@@ -1,5 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+
 import { PrismaService } from 'src/prisma.service';
+import { conversionToArr } from 'src/utils/conversionToArr';
+import { ParamsDto } from './dto/params.dto';
 
 @Injectable()
 export class ProductsService {
@@ -38,6 +41,72 @@ export class ProductsService {
 
   getAll() {
     return this.prisma.product.findMany();
+  }
+
+  async getFilteredPizzas(params: ParamsDto) {
+    const DEFAULT_MIN_PRICE = 0;
+    const DEFAULT_MAX_PRICE = 1000;
+
+    const sizes = conversionToArr(params.sizes);
+    const pizzaTypes = conversionToArr(params.pizzaTypes);
+    const ingredientsIdArr = conversionToArr(params.ingredients);
+    const minPrice = Number(params.priceFrom) || DEFAULT_MIN_PRICE;
+    const maxPrice = Number(params.priceTo) || DEFAULT_MAX_PRICE;
+
+    const categories = await this.prisma.category.findMany({
+      include: {
+        products: {
+          orderBy: {
+            id: 'desc',
+          },
+          where: {
+            name: {
+              contains: params.query,
+              mode: 'insensitive',
+            },
+            ingredients: ingredientsIdArr
+              ? {
+                  some: {
+                    id: {
+                      in: ingredientsIdArr,
+                    },
+                  },
+                }
+              : undefined,
+            items: {
+              some: {
+                size: {
+                  in: sizes,
+                },
+                pizzaType: {
+                  in: pizzaTypes,
+                },
+                price: {
+                  gte: minPrice, // >=
+                  lte: maxPrice, // <=
+                },
+              },
+            },
+          },
+          include: {
+            ingredients: true,
+            items: {
+              where: {
+                price: {
+                  gte: minPrice,
+                  lte: maxPrice,
+                },
+              },
+              orderBy: {
+                price: 'asc',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return categories.filter((category) => category.products.length > 0);
   }
 
   search(query: string) {
