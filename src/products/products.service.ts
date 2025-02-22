@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { PrismaService } from 'src/prisma.service';
-import { conversionToArr } from 'src/utils/conversionToArr';
 import { ParamsDto } from './dto/params.dto';
+import { conversionToArr } from './utils/conversionToArr';
 
 @Injectable()
 export class ProductsService {
