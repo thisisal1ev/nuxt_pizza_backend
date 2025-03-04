@@ -1,82 +1,64 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { compare, hashSync } from 'bcrypt';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { compare, hash } from 'bcrypt';
 
 import { PrismaService } from 'src/prisma.service';
-import { LoginDto, RegisterDto } from './dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
 
-  // TODO: receiving and validating JWT tokens
-  async login(req: { body: LoginDto }) {
-    const body: LoginDto = req.body;
+  async validateUser(email: string, password: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
 
-    try {
-      const findUser = await this.prisma.user.findFirst({
-        where: {
-          email: body.email,
-        },
-      });
-
-      if (!findUser) {
-        throw new UnauthorizedException('User not found');
-      }
-
-      const comparePasswords = await compare(body.password, findUser.password);
-
-      if (!comparePasswords) {
-        throw new UnauthorizedException('Invalid password');
-      }
-
-      const { password, ...result } = findUser;
-
+    if (user && (await compare(password, user.password))) {
+      const { password, ...result } = user;
       return result;
-    } catch (e) {
-      throw new UnauthorizedException(e);
     }
+    return null;
   }
 
-  // TODO: send verification code to email and generate JWT token
-  async register(req: { body: RegisterDto }) {
-    const body = req.body;
+  async login(user: any) {
+    const payload = { email: user.email, sub: user.id };
 
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+  }
+
+  async register(email: string, password: string, fullName: string) {
+    // First check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    const hashedPassword = await hash(password, 10);
+    
     try {
-      const findUser = await this.prisma.user.findFirst({
-        where: {
-          email: body.email,
-        },
-      });
-
-      if (findUser) {
-        if (!findUser.verified) {
-          throw new UnauthorizedException('Email not verified');
-        }
-
-        throw new UnauthorizedException('User already exists');
-      }
-
-      const { password, ...result } = await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data: {
-          fullName: body.fullName,
-          email: body.email,
-          password: hashSync(body.password, 10),
+          email,
+          password: hashedPassword,
+          fullName,
         },
       });
 
-      // TODO: send verification code to email
-      // const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-      // await this.prisma.verificationCode.create({
-      //   data: {
-      //     code,
-      //     userId: createdUser.id,
-      //   },
-      // });
-
+      const { password: _, ...result } = user;
       return result;
-    } catch (e) {
-      throw new UnauthorizedException(e);
+    } catch (error) {
+      if (error?.code === 'P2002') {
+        throw new ConflictException('Email already exists');
+      }
+      throw error;
     }
   }
 }

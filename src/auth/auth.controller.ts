@@ -1,7 +1,15 @@
-import { Controller, Get, Patch, Post, Req } from '@nestjs/common';
-import { Request } from 'express';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 
 import { AuthService } from './auth.service';
+import { LocalAuthGuard } from './guards/local-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -19,14 +27,17 @@ export class AuthController {
   @Patch('me')
   updatePassword() {}
 
-  @Post('login')
-  login(@Req() req: Request) {
-    return this.authService.login(req);
+  @Post('register')
+  async register(
+    @Body() body: { email: string; password: string; fullName: string },
+  ) {
+    return this.authService.register(body.email, body.password, body.fullName);
   }
 
-  @Post('register')
-  register(@Req() req: Request) {
-    return this.authService.register(req);
+  @UseGuards(LocalAuthGuard)
+  @Post('login')
+  async login(@Request() req) {
+    return this.authService.login(req.user);
   }
 
   // TODO: Implement the `logout` method
